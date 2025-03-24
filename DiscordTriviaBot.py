@@ -30,6 +30,12 @@ async def on_message(message):
     
     #
     #
+    ###Help command
+    if message.content.startswith('$help'):
+        await message.channel.send("--$trivia: Start trivia.\n--$leaderboard: View top 5 players.\n--$mydata: See your player data.\n--$reset: Reset your player data.")
+    
+    #
+    #
     ###Leaderboard command
     if message.content.startswith('$leaderboard'):
         
@@ -47,12 +53,63 @@ async def on_message(message):
         index = 0
         leaderboardMessage = ""
         while index < 5 and index < len(leaderboard):
-            leaderboardMessage += str(str(index+1)+": "+leaderboard.at[index,"name"]+"\n   Score: "+str(leaderboard.at[index,"score"].item())+"\n")
+            leaderboardMessage += str(str(index+1)+": "+leaderboard.at[index,"name"]+
+                                      "\n   Questions Attempted: "+str(leaderboard.at[index, "attempts"].item())+
+                                      "\n   Correct Answers: "+str(leaderboard.at[index,"cAnswers"].item())+
+                                      "\n   Incorrect Answers: "+str(leaderboard.at[index,"attempts"].item() - leaderboard.at[index,"cAnswers"].item())+
+                                      "\n   Correct Rate: "+str(round(leaderboard.at[index,"cAnswers"].item() / leaderboard.at[index,"attempts"].item() *100 ,2))+"%"+
+                                      "\n   Score: "+str(leaderboard.at[index,"score"].item())+"\n")
             index += 1
             
         #Send leaderboard message
         await message.channel.send(leaderboardMessage)
     
+    #
+    #
+    ###Player data command
+    if message.content.startswith('$mydata'):
+        
+        #Read player data file
+        playerDF = pd.read_csv(
+            "PlayerData.csv",
+            delimiter=","
+            )
+        
+        #Get players data
+        playerData = playerDF.loc[playerDF["name"] == "dalsiran"]
+        
+        #Send player data message
+        await message.channel.send("Data for "+playerData["name"].item()+
+                                   ":\nQuestions Attempted: "+str(playerData["attempts"].item())+
+                                   "\nCorrect Answers: "+str(playerData["cAnswers"].item())+
+                                   "\nIncorrect Answers: "+str(playerData["attempts"].item() - playerData["cAnswers"].item())+
+                                   "\nCorrect Rate: "+str(round(playerData["cAnswers"].item() / playerData["attempts"].item() *100 ,2))+"%"+
+                                   "\nScore: "+str(playerData["score"].item()))
+    
+    #
+    #
+    ###Reset command
+    if message.content.startswith("$reset"): #Check for reset command
+        
+        #Get player name
+        player = message.author
+        playerName = str(player)
+        
+        #Read player data file
+        playerDF = pd.read_csv(
+            "PlayerData.csv",
+            delimiter=","
+            )
+        
+        print("Deleting player data for...", playerName)
+        playerDF = playerDF[playerDF["name"] != playerName] #remove player
+        await message.channel.send("Data reset!")
+        
+        #Write data to leaderboard
+        playerDF.to_csv( 
+            "PlayerData.csv", 
+            index=False
+            )
     
     #
     #
@@ -81,6 +138,7 @@ async def on_message(message):
             playerData = { #Build dataframe row to add to leaderboard
                 "name": [player],
                 "attempts": [0],
+                "cAnswers" : [0],
                 "score": [0]
                 }
             playerDataDF = pd.DataFrame(playerData) #Convert to dataframe
@@ -125,7 +183,7 @@ async def on_message(message):
         
             #Get the current question data
             playerQuestion = questions.loc[attempts]
-            question = playerQuestion["question"]
+            question = str(playerQuestion["question"])
             correctAnswer = playerQuestion["answer"]
             hint = playerQuestion["hint"]
         
@@ -149,6 +207,7 @@ async def on_message(message):
                         await message2.channel.send("Correct!") #Send correct message
                         playerDF.loc[playerDF["name"] == playerName, "attempts"] += 1
                         playerDF.loc[playerDF["name"] == playerName, "score"] += 1
+                        playerDF.loc[playerDF["name"] == playerName, "cAnswers"] += 1
                         c = False #Stop loop
                 
                     #Hint command
@@ -174,11 +233,13 @@ async def on_message(message):
                 
                 
                     #Write data to leaderboard
+                    print("Writing player data to file...")
                     playerDF.to_csv( 
                         "PlayerData.csv", 
                         index=False
                         )
+                    print("Writing complete!")
     
 
 #DON"T FORGET TO SET YOUR BOT TOKEN!!#
-client.run("YOUR KEY GOES HERE")
+client.run("YOUR TOKEN GOES HERE")
